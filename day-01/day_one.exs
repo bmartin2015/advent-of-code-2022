@@ -39,4 +39,4 @@ defmodule DayOne do
   end
 end
 
-IO.inspect(DayOne.run("input.txt"))
+DayOne.run("input.txt")
