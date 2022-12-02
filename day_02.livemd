@@ -1,0 +1,91 @@
+# Day 1
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Input
+
+[Advent of Code 2022 Day Two](https://adventofcode.com/2022/day/2)
+
+Inputs can be found in the day-02 folder.
+
+```elixir
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+## Part 1
+
+```elixir
+defmodule PartOne do
+  @x_value 1
+  @y_value 2
+  @z_value 3
+
+  @win_value 6
+  @draw_value 3
+  @loss_value 0
+
+  def choice_value("X"), do: @x_value
+  def choice_value("Y"), do: @y_value
+  def choice_value("Z"), do: @z_value
+
+  def outcome("A", "X"), do: @draw_value
+  def outcome("A", "Y"), do: @win_value
+  def outcome("A", "Z"), do: @loss_value
+  def outcome("B", "Y"), do: @draw_value
+  def outcome("B", "Z"), do: @win_value
+  def outcome("B", "X"), do: @loss_value
+  def outcome("C", "Z"), do: @draw_value
+  def outcome("C", "X"), do: @win_value
+  def outcome("C", "Y"), do: @loss_value
+end
+
+input
+|> Kino.Input.read()
+|> String.split("\n")
+|> Enum.map(&String.split(&1, " "))
+|> Enum.map(fn [elf, you] ->
+  PartOne.choice_value(you) + PartOne.outcome(elf, you)
+end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+defmodule PartTwo do
+  @a_value 1
+  @b_value 2
+  @c_value 3
+
+  @win_value 6
+  @draw_value 3
+  @loss_value 0
+
+  def outcome_value("X"), do: @loss_value
+  def outcome_value("Y"), do: @draw_value
+  def outcome_value("Z"), do: @win_value
+
+  def choice_value("A", "X"), do: @c_value
+  def choice_value("B", "X"), do: @a_value
+  def choice_value("C", "X"), do: @b_value
+
+  def choice_value("A", "Y"), do: @a_value
+  def choice_value("B", "Y"), do: @b_value
+  def choice_value("C", "Y"), do: @c_value
+
+  def choice_value("A", "Z"), do: @b_value
+  def choice_value("B", "Z"), do: @c_value
+  def choice_value("C", "Z"), do: @a_value
+end
+
+input
+|> Kino.Input.read()
+|> String.split("\n")
+|> Enum.map(&String.split(&1, " "))
+|> Enum.map(fn [elf, you] ->
+  PartTwo.outcome_value(you) + PartTwo.choice_value(elf, you)
+end)
+|> Enum.sum()
+```

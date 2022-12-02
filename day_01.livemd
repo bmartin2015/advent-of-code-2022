@@ -1,0 +1,47 @@
+# Day 1
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Input
+
+[Advent of Code 2022 Day One](https://adventofcode.com/2022/day/1)
+
+Inputs can be found in the day-01 folder.
+
+```elixir
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+## Part 1
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n\n")
+|> Enum.map(fn elf ->
+  elf
+  |> String.split("\n")
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.sum()
+end)
+|> Enum.max()
+```
+
+## Part 2
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n\n")
+|> Enum.map(fn elf ->
+  elf
+  |> String.split("\n")
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.sum()
+end)
+|> Enum.sort(:desc)
+|> Enum.take(3)
+|> Enum.sum()
+```
