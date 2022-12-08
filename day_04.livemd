@@ -1,0 +1,66 @@
+# Day 4: Camp Cleanup
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+## Part 1
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n")
+|> Enum.map(&String.split(&1, ","))
+|> Enum.map(fn pair ->
+  Enum.map(pair, fn elf ->
+    [a, b] =
+      elf
+      |> String.split("-")
+      |> Enum.map(&String.to_integer/1)
+
+    a
+    |> Range.new(b)
+    |> MapSet.new()
+  end)
+end)
+|> Enum.filter(fn [a, b] ->
+  MapSet.subset?(a, b) or MapSet.subset?(b, a)
+end)
+|> Enum.count()
+```
+
+## Part 2
+
+```elixir
+input
+|> Kino.Input.read()
+|> String.split("\n")
+|> Enum.map(&String.split(&1, ","))
+|> Enum.map(fn pair ->
+  Enum.map(pair, fn elf ->
+    [a, b] =
+      elf
+      |> String.split("-")
+      |> Enum.map(&String.to_integer/1)
+
+    a
+    |> Range.new(b)
+    |> MapSet.new()
+  end)
+end)
+|> Enum.filter(fn [a, b] ->
+  size =
+    a
+    |> MapSet.intersection(b)
+    |> MapSet.size()
+
+  size != 0
+end)
+|> Enum.count()
+```
