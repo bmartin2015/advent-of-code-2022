@@ -1,0 +1,80 @@
+# Day 6: Tuning Trouble
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Input
+
+Test Imput: `nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg`
+
+```elixir
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+## Part 1
+
+```elixir
+defmodule TuningTrouble do
+  def part_one(input) do
+    input
+    |> parse_input()
+    |> find_end_of_packet_marker(3, false)
+  end
+
+  def part_two(input) do
+    input
+    |> parse_input()
+    |> find_end_of_message_marker(13, false)
+  end
+
+  def find_end_of_packet_marker(_list, count, true), do: count
+
+  def find_end_of_packet_marker([_ | rest] = list, count, false) do
+    find_end_of_packet_marker(rest, count + 1, start_of_packet_marker?(list))
+  end
+
+  def find_end_of_message_marker(_list, count, true), do: count
+
+  def find_end_of_message_marker([_ | rest] = list, count, false) do
+    find_end_of_message_marker(rest, count + 1, start_of_message_marker?(list))
+  end
+
+  def parse_input(input) do
+    String.graphemes(input)
+  end
+
+  def start_of_packet_marker?(list) do
+    4 == list |> Enum.take(4) |> Enum.uniq() |> length()
+  end
+
+  def start_of_message_marker?(list) do
+    14 == list |> Enum.take(14) |> Enum.uniq() |> length()
+  end
+end
+
+test_inputs = [
+  "mjqjpqmgbljsphdztnvjfqwrcgsmlb",
+  "bvwbjplbgvbhsrlpgdmjqwftvncz",
+  "nppdvjthqldpwncqszvftbrmjlhg",
+  "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg",
+  "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw"
+]
+
+[7, 5, 6, 10, 11] == Enum.map(test_inputs, &TuningTrouble.part_one/1)
+
+[19, 23, 23, 29, 26] == Enum.map(test_inputs, &TuningTrouble.part_two/1)
+
+part_one =
+  input
+  |> Kino.Input.read()
+  |> TuningTrouble.part_one()
+
+part_two =
+  input
+  |> Kino.Input.read()
+  |> TuningTrouble.part_two()
+
+IO.inspect("Part 1: #{part_one}")
+IO.inspect("Part 2: #{part_two}")
+```
