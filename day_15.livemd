@@ -1,0 +1,155 @@
+# Day 15: Beacon Exclusion Zone
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Input
+
+[Day 15](https://adventofcode.com/2022/day/15)
+
+[Day 15 Input](https://adventofcode.com/2022/day/15/input)
+
+Test Input:
+
+```
+Sensor at x=2, y=18: closest beacon is at x=-2, y=15
+Sensor at x=9, y=16: closest beacon is at x=10, y=16
+Sensor at x=13, y=2: closest beacon is at x=15, y=3
+Sensor at x=12, y=14: closest beacon is at x=10, y=16
+Sensor at x=10, y=20: closest beacon is at x=10, y=16
+Sensor at x=14, y=17: closest beacon is at x=10, y=16
+Sensor at x=8, y=7: closest beacon is at x=2, y=10
+Sensor at x=2, y=0: closest beacon is at x=2, y=10
+Sensor at x=0, y=11: closest beacon is at x=2, y=10
+Sensor at x=20, y=14: closest beacon is at x=25, y=17
+Sensor at x=17, y=20: closest beacon is at x=21, y=22
+Sensor at x=16, y=7: closest beacon is at x=15, y=3
+Sensor at x=14, y=3: closest beacon is at x=15, y=3
+Sensor at x=20, y=1: closest beacon is at x=15, y=3
+```
+
+```elixir
+test_input =
+  "Sensor at x=2, y=18: closest beacon is at x=-2, y=15\nSensor at x=9, y=16: closest beacon is at x=10, y=16\nSensor at x=13, y=2: closest beacon is at x=15, y=3\nSensor at x=12, y=14: closest beacon is at x=10, y=16\nSensor at x=10, y=20: closest beacon is at x=10, y=16\nSensor at x=14, y=17: closest beacon is at x=10, y=16\nSensor at x=8, y=7: closest beacon is at x=2, y=10\nSensor at x=2, y=0: closest beacon is at x=2, y=10\nSensor at x=0, y=11: closest beacon is at x=2, y=10\nSensor at x=20, y=14: closest beacon is at x=25, y=17\nSensor at x=17, y=20: closest beacon is at x=21, y=22\nSensor at x=16, y=7: closest beacon is at x=15, y=3\nSensor at x=14, y=3: closest beacon is at x=15, y=3\nSensor at x=20, y=1: closest beacon is at x=15, y=3"
+
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+## Code
+
+```elixir
+defmodule Beacon do
+  def part_one(input, row) do
+    {sensors, beacons} = parse_input(input)
+
+    sensors
+    |> Enum.map(&compute_range(&1, row))
+    |> Enum.filter(fn first..last -> first <= last end)
+    |> Enum.sort_by(& &1.first)
+    |> merge_ranges()
+    |> remove_beacons(beacons, row)
+  end
+
+  def part_two(input, max_value) do
+    {sensors, _beacons} = parse_input(input)
+
+    Enum.reduce_while(0..max_value, {}, fn row, acc ->
+      case build_ranges(sensors, row) do
+        ranges when is_list(ranges) and length(ranges) > 1 ->
+          {:halt, {ranges, row}}
+
+        _ ->
+          {:cont, acc}
+      end
+    end)
+    |> compute_frequency()
+  end
+
+  def parse_input(input) do
+    input
+    |> String.split("\n")
+    |> Enum.map(&parse_row/1)
+    |> Enum.map(fn {sensor, beacon} -> {{sensor, distance({sensor, beacon})}, beacon} end)
+    |> Enum.unzip()
+  end
+
+  defp build_ranges(sensors, row) do
+    sensors
+    |> Enum.map(&compute_range(&1, row))
+    |> Enum.filter(fn first..last -> first <= last end)
+    |> Enum.sort_by(& &1.first)
+    |> merge_ranges()
+  end
+
+  defp compute_range({{x1, y1}, distance}, row) do
+    offset = distance - abs(row - y1)
+
+    (x1 - offset)..(x1 + offset)
+  end
+
+  defp merge_ranges([first | _rest] = list) when is_list(list), do: do_merge_ranges(list, [first])
+
+  defp do_merge_ranges([], acc), do: acc
+
+  defp do_merge_ranges([range | ranges], range_list) do
+    [last_range | outages] = range_list
+
+    if last_range.last >= range.first - 1 do
+      do_merge_ranges(ranges, [last_range.first..max(range.last, last_range.last) | outages])
+    else
+      do_merge_ranges(ranges, [range | range_list])
+    end
+  end
+
+  defp remove_beacons(ranges, beacons, row) do
+    beacon_count =
+      beacons
+      |> Enum.uniq()
+      |> Enum.filter(fn {_x, y} = beacon -> y == row and beacon_in_col(beacon, ranges) end)
+      |> length()
+
+    ranges
+    |> Enum.map(&Range.size/1)
+    |> Enum.sum()
+    |> Kernel.-(beacon_count)
+  end
+
+  defp beacon_in_col({x, _y}, ranges) do
+    ranges
+    |> Enum.filter(&Enum.member?(&1, x))
+    |> Enum.any?()
+  end
+
+  defp distance({{x1, y1}, {x2, y2}}), do: abs(x2 - x1) + abs(y2 - y1)
+
+  defp compute_frequency({[first.._last | _], row}), do: (first - 1) * 4_000_000 + row
+
+  defp parse_row(row) do
+    [x1, y1, x2, y2] =
+      ~r/-?\d+/
+      |> Regex.scan(row)
+      |> List.flatten()
+      |> Enum.map(&String.to_integer/1)
+
+    {{x1, y1}, {x2, y2}}
+  end
+end
+```
+
+```elixir
+26 = Beacon.part_one(test_input, 10)
+
+56_000_011 = Beacon.part_two(test_input, 20)
+
+y = 2_000_000
+max_row = 4_000_000
+
+kino_input = Kino.Input.read(input)
+
+part_one = Beacon.part_one(kino_input, y)
+IO.puts("Part One: #{part_one}")
+
+part_two = Beacon.part_two(kino_input, max_row)
+IO.puts("Part Two: #{part_two}")
+```
