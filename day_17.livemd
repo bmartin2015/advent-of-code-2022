@@ -1,0 +1,326 @@
+# Day 17: Pyroclastic Flow
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.7.0"}
+])
+```
+
+## Input
+
+[Day 17](https://adventofcode.com/2022/day/17)
+
+[Day 17 Input](https://adventofcode.com/2022/day/17/input)
+
+Test Input:
+
+```
+>>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>
+```
+
+```elixir
+test_input = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
+
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+## Part 1
+
+```elixir
+defmodule PyroclasticFlow do
+  @moduledoc """
+  Cave is 7 units wide (0..6)
+  """
+
+  @part_one_num_rocks 10
+  @rocks [
+    [{2, 0}, {3, 0}, {4, 0}, {5, 0}],
+    [{3, 2}, {2, 1}, {3, 1}, {4, 1}, {3, 0}],
+    [{4, 2}, {4, 1}, {2, 0}, {3, 0}, {4, 0}],
+    [{2, 3}, {2, 2}, {2, 1}, {2, 0}],
+    [{2, 1}, {3, 1}, {2, 0}, {3, 0}]
+  ]
+
+  def part_one(input) do
+    @rocks
+    |> Stream.cycle()
+    |> Enum.take(@part_one_num_rocks)
+    |> process_rock(init_state(input))
+  end
+
+  def init_state(input) do
+    %{
+      jet_queue: :queue.from_list(String.graphemes(input)),
+      stopped_rocks: MapSet.new(),
+      current_height: -1
+    }
+  end
+
+  def process_rock([], state), do: state
+
+  def process_rock([rock | rest], state) do
+    IO.inspect("Processing Rock")
+    {jet, state} = next_jet(state)
+
+    rock
+    |> setup_rock(state.current_height)
+    |> process_jet(jet, state)
+    |> move_down(state)
+    |> case do
+      {:halt, this_pos} ->
+        updated_state = handle_halt(this_pos, state)
+        process_rock(rest, updated_state)
+
+      {:cont, next_pos} ->
+        process_rock([next_pos | rest], state)
+    end
+  end
+
+  def handle_halt(rock, state) do
+    u =
+      rock
+      |> MapSet.new()
+      |> MapSet.union(state.stopped_rocks)
+
+    %{state | stopped_rocks: u, current_height: compute_height(u)}
+  end
+
+  def setup_rock(rock, height) do
+    Enum.map(rock, fn {x, y} -> {x, y + height + 4} end)
+  end
+
+  def process_jet(rock_state, ">", state) do
+    new_rock_state = Enum.map(rock_state, fn {x, y} -> {x + 1, y} end)
+    if invalid?(new_rock_state, state), do: rock_state, else: new_rock_state
+  end
+
+  def process_jet(rock_state, "<", state) do
+    new_rock_state = Enum.map(rock_state, fn {x, y} -> {x - 1, y} end)
+    if invalid?(new_rock_state, state), do: rock_state, else: new_rock_state
+  end
+
+  def move_down(rock_state, state) do
+    new_rock_state = Enum.map(rock_state, fn {x, y} -> {x, y - 1} end)
+    if invalid?(new_rock_state, state), do: {:halt, rock_state}, else: {:cont, new_rock_state}
+  end
+
+  def invalid?(rock, state) do
+    Enum.any?(rock, fn {x, y} = r -> y < 0 or x not in 0..6 or r in state.stopped_rocks end)
+  end
+
+  def next_jet(%{jet_queue: queue} = state) do
+    {{:value, jet}, queue} = :queue.out(queue)
+
+    {jet, %{state | jet_queue: :queue.in(jet, queue)}}
+  end
+
+  def compute_height(rock_mapset) do
+    {_, height} = Enum.max_by(rock_mapset, fn {_x, y} -> y end)
+
+    height
+  end
+end
+```
+
+```elixir
+3068 = PyroclasticFlow.part_one(test_input)
+
+# part_one = 
+#  input
+#  |> Kino.Input.read()
+#  |> PyroclasticFlow.part_one()
+
+# IO.puts("Part One Height: #{part_one}")
+```
+
+## Part 2
+
+```elixir
+defmodule PartTwo do
+  @rock_order [:-, :+, :j, :|, :o]
+  @rocks %{
+    -: [{2, 0}, {3, 0}, {4, 0}, {5, 0}],
+    +: [{3, 2}, {2, 1}, {3, 1}, {4, 1}, {3, 0}],
+    j: [{4, 2}, {4, 1}, {2, 0}, {3, 0}, {4, 0}],
+    |: [{2, 3}, {2, 2}, {2, 1}, {2, 0}],
+    o: [{2, 1}, {3, 1}, {2, 0}, {3, 0}]
+  }
+
+  def run(input) do
+    @rock_order
+    |> Stream.cycle()
+    |> Stream.scan(init_state(input), &block/2)
+    |> Stream.drop(9)
+    |> Enum.take(1)
+  end
+
+  def init_state(input) do
+    %{
+      jets: :queue.from_list(String.graphemes(input)),
+      field: MapSet.new(),
+      heights: 0 |> List.duplicate(7) |> List.to_tuple(),
+      priv_state: %{},
+      prev: %{}
+    }
+  end
+
+  def process_rock(rock, state) when rock in @rock_order,
+    do: process_rock(build_rock(rock, state), state)
+
+  def process_rock(rock, state) do
+    {jet, state} = next_jet(state)
+
+    block
+    |> process_jet(jet, state)
+  end
+
+  defp build_rock(type, state) do
+    height = state.heights |> Enum.to_list() |> Enum.max()
+    @rocks[type] |> Enum.map(fn {x, y} -> {x, y + height + 4} end)
+  end
+
+  def process_jet(rock_state, ">", state), do: do_move(rock, fn {x, y} -> {x + 1, y} end, state)
+  def process_jet(rock_state, "<", state), do: do_move(rock, fn {x, y} -> {x - 1, y} end, state)
+
+  defp do_move(block, fun, state) do
+    next = Enum.map(block, fun)
+    if invalid?(next, state), do: block, else: next
+  end
+
+  defp invalid?(rock, state) do
+    Enum.any?(rock, fn {x, y} = r -> y < 0 or x not in 0..6 or r in state.field end)
+  end
+
+  defp next_jet(%{jet_queue: queue} = state) do
+    {{:value, jet}, queue} = :queue.out(queue)
+
+    {jet, %{state | jet_queue: :queue.in(jet, queue)}}
+  end
+end
+
+PartTwo.run(test_input)
+```
+
+```elixir
+defmodule AoCTest do
+  @block_order [:-, :+, :j, :|, :o]
+  @blocks %{
+    -: for(x <- 0..3, do: {x, 0}),
+    +: [{1, 2}, {0, 1}, {1, 1}, {2, 1}, {1, 0}],
+    j: [{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}],
+    |: for(y <- 0..3, do: {0, y}),
+    o: [{0, 0}, {1, 0}, {0, 1}, {1, 1}]
+  }
+
+  def p1(input), do: input |> run_n_blocks(2022) |> height()
+  def p2(input), do: input |> find_height_with_cycles(1_000_000_000_000)
+
+  def initial_state(input) do
+    %{
+      heights: 0 |> List.duplicate(7) |> List.to_tuple(),
+      field: MapSet.new(),
+      next_moves: input,
+      moves: input,
+      prev_states: %{},
+      prev: %{}
+    }
+  end
+
+  def run_n_blocks(input, n) do
+    @block_order
+    |> Stream.cycle()
+    |> Stream.scan(initial_state(input), &block/2)
+    |> Stream.drop(n - 1)
+    |> Enum.take(1)
+    |> hd()
+  end
+
+  def find_height_with_cycles(input, n) do
+    {idx, state, prev_state} =
+      @block_order
+      |> Stream.cycle()
+      |> Stream.with_index(1)
+      |> Enum.reduce_while(initial_state(input), fn {block, idx}, state ->
+        key = {block, state[:next_moves], offsets(state)}
+
+        case state.prev_states[key] do
+          nil ->
+            state = put_in(state, [:prev_states, key], Map.put(state, :idx, idx))
+            {:cont, block(block, state)}
+
+          prev_state ->
+            {:halt, {idx, state, prev_state}}
+        end
+      end)
+
+    cycle_length = idx - prev_state[:idx]
+    remaining_steps = n - idx
+
+    cycle_times = div(remaining_steps, cycle_length)
+    offset = rem(remaining_steps, cycle_length)
+
+    height_increase = height(state) - height(prev_state)
+    state = run_n_blocks(input, idx + offset)
+    height(state) + height_increase * cycle_times
+  end
+
+  def block(block, state) when is_atom(block), do: block(spawn(block, state), state)
+
+  def block(block, s = %{next_moves: "", moves: m}), do: block(block, %{s | next_moves: m})
+
+  def block(block, s = %{next_moves: <<dir, next::binary>>}) do
+    block
+    |> move(dir, s)
+    |> down(s)
+    |> case do
+      {:stuck, s} -> %{s | next_moves: next}
+      {:continue, block} -> block(block, %{s | next_moves: next})
+    end
+  end
+
+  def down(block, state = %{field: field, heights: heights}) do
+    next = Enum.map(block, fn {x, y} -> {x, y - 1} end)
+
+    if invalid?(next, state) do
+      field = Enum.reduce(block, field, &MapSet.put(&2, &1))
+
+      heights =
+        Enum.reduce(block, heights, fn {x, y}, acc ->
+          put_elem(acc, x, max(y + 1, elem(acc, x)))
+        end)
+
+      {:stuck, %{state | field: field, heights: heights}}
+    else
+      {:continue, next}
+    end
+  end
+
+  def move(block, ?<, state), do: do_move(block, fn {x, y} -> {x - 1, y} end, state)
+  def move(block, ?>, state), do: do_move(block, fn {x, y} -> {x + 1, y} end, state)
+
+  def do_move(block, fun, state) do
+    next = Enum.map(block, fun)
+    if(invalid?(next, state), do: block, else: next)
+  end
+
+  def spawn(blk, state) do
+    top = height(state)
+    @blocks[blk] |> Enum.map(fn {x, y} -> {x + 2, top + 3 + y} end)
+  end
+
+  def invalid?(b, %{field: field}) do
+    Enum.any?(b, fn t = {x, y} -> y < 0 || x not in 0..6 || t in field end)
+  end
+
+  def height(%{heights: h}), do: h |> Tuple.to_list() |> Enum.max()
+
+  def offsets(s = %{heights: h}) do
+    top = height(s)
+    h |> Tuple.to_list() |> Enum.map(&(top - &1))
+  end
+end
+
+input
+|> Kino.Input.read()
+|> AoCTest.p1()
+```
