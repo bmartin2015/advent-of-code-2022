@@ -1,0 +1,119 @@
+# Day 20: Grove Positioning System
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Setup
+
+* [Day 20](https://adventofcode.com/2022/day/20)
+* [Day 20 Input](https://adventofcode.com/2022/day/20/input)
+
+```elixir
+test_input = "1\n2\n-3\n3\n-2\n0\n4"
+
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+## Part 1
+
+```elixir
+defmodule GrovePositioningSystem do
+  defmodule CircularList do
+    defstruct list: [],
+              length: 0
+
+    def new(list) when is_list(list), do: %__MODULE__{list: list, length: length(list)}
+
+    def at(%__MODULE__{} = cl, index) when is_integer(index) do
+      circular_index = Integer.mod(index, cl.length)
+      Enum.at(cl.list, circular_index)
+    end
+
+    def find_index(%__MODULE__{} = cl, v), do: Enum.find_index(cl.list, &(&1 == v))
+  end
+
+  alias GrovePositioningSystem.CircularList
+
+  @decryption_indexes [1000, 2000, 3000]
+  @decryption_key 811_589_153
+
+  def part_one(input) do
+    input
+    |> parse_input()
+    |> Enum.with_index()
+    |> decrypt_list()
+    |> find_grove_coordinates()
+    |> Enum.sum()
+    |> tap(&IO.puts("Part One Sum: #{&1}"))
+  end
+
+  def part_two(input) do
+    input
+    |> parse_input()
+    |> Enum.map(&(&1 * @decryption_key))
+    |> Enum.with_index()
+    |> mix_list()
+    |> find_grove_coordinates()
+    |> Enum.sum()
+    |> tap(&IO.puts("Part Two Sum: #{&1}"))
+  end
+
+  def mix_list(base_list) do
+    Enum.reduce(1..10, CircularList.new(base_list), fn _x, acc ->
+      Enum.reduce(base_list, acc, &move_number(&2, &1))
+    end)
+  end
+
+  def decrypt_list(base_list) do
+    Enum.reduce(base_list, CircularList.new(base_list), &move_number(&2, &1))
+  end
+
+  def move_number(circular_list, {number, _} = value) do
+    current_index = CircularList.find_index(circular_list, value)
+    new_index = Integer.mod(current_index + number, circular_list.length - 1)
+    {^value, l} = List.pop_at(circular_list.list, current_index)
+    %{circular_list | list: List.insert_at(l, new_index, value)}
+  end
+
+  def find_grove_coordinates(%CircularList{} = cl) do
+    zero_value = cl.list |> Enum.filter(fn {x, _y} -> x == 0 end) |> List.first()
+
+    zero_index = CircularList.find_index(cl, zero_value)
+
+    @decryption_indexes
+    |> Enum.map(&(&1 + zero_index))
+    |> Enum.map(&CircularList.at(cl, &1))
+    |> Enum.map(fn {x, _y} -> x end)
+  end
+
+  def parse_input(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.to_integer/1)
+  end
+end
+```
+
+```elixir
+3 == GrovePositioningSystem.part_one(test_input)
+
+1_623_178_306 == GrovePositioningSystem.part_two(test_input)
+
+kino_input = Kino.Input.read(input) |> List.wrap()
+
+part_one = Task.async(GrovePositioningSystem, :part_one, kino_input)
+part_two = Task.async(GrovePositioningSystem, :part_two, kino_input)
+
+Task.await(part_one)
+Task.await(part_two)
+```
+
+* 1, 2, -3, 3, -2, 0, 4
+* 2, 1, -3, 3, -2, 0, 4
+* 1, -3, 2, 3, -2, 0, 4
+* 1, 2, 3, -2, -3, 0, 4
+* 1, 2, -2, -3, 0, 3, 4
+* 1, 2, -3, 0, 3, 4, -2
+* 1, 2, -3, 0, 3, 4, -2
+* 1, 2, -3, 4, 0, 3, -2
